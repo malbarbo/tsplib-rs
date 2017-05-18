@@ -1,0 +1,14 @@
+[package]
+name = "tsplib"
+version = "0.1.0"
+authors = ["malbarbo"]
+description = "Parser for TSPLIB instances"
+keywords = ["tsp", "tsplib", "parser"]
+categories = ["parser-implementations"]
+repository = "https://github.com/malbarbo/tsplib-rs"
+readme = "README.md"
+license = "MIT/Apache-2.0"
+
+[badges]
+travis-ci = { repository = "malbarbo/tsplib" }
+appveyor = { repository = "malbarbo/tsplib" }
