@@ -1,3 +1,44 @@
+//! Parser for [TSPLIB](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/) instances.
+//!
+//! # Example
+//!
+//! ```
+//! use tsplib::{EdgeWeightType, NodeCoord, Type};
+//! use std::io::Cursor;
+//!
+//! let data = br#"
+//! NAME : example
+//! COMMENT : this is
+//! COMMENT : a simple example
+//! TYPE : TSP
+//! DIMENSION : 3
+//! EDGE_WEIGHT_TYPE: EUC_2D
+//! NODE_COORD_SECTION
+//!   1 1.2 3.4
+//!   2 5.6 7.8
+//!   3 9.0 1.2
+//! EOF
+//! "#;
+//!
+//! let instance = tsplib::parse(Cursor::new(&data[..])).unwrap();
+//! assert_eq!("example", instance.name);
+//! assert_eq!(Some(Type::Tsp), instance.type_);
+//! assert_eq!(vec!["this is".to_owned(), "a simple example".to_owned()], instance.comment);
+//! assert_eq!(3, instance.dimension);
+//! assert_eq!(0, instance.capacity);
+//! assert_eq!(None, instance.edge_data);
+//! assert_eq!(None, instance.edge_weight);
+//! assert_eq!(Some(EdgeWeightType::Euc2d), instance.edge_weight_type);
+//! assert_eq!(None, instance.fixed_edges);
+//! assert_eq!(Some(NodeCoord::Two(vec![(1, 1.2, 3.4),
+//!                                     (2, 5.6, 7.8),
+//!                                     (3, 9.0, 1.2)])),
+//!            instance.node_coord);
+//! assert_eq!(None, instance.display_data);
+//! assert_eq!(None, instance.display_data_type);
+//! assert_eq!(None, instance.tour);
+//! ```
+
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufReader, BufRead};
@@ -10,6 +51,7 @@ macro_rules! err_invalid_data {
     )
 }
 
+/// An TSPLIB instance.
 #[derive(Default, Debug)]
 pub struct Instance {
     pub name: String,
@@ -20,19 +62,20 @@ pub struct Instance {
     pub edge_data: Option<EdgeData>,
     pub edge_weight: Option<EdgeWeight>,
     pub edge_weight_type: Option<EdgeWeightType>,
-    pub fixed_edges: Vec<(usize, usize)>,
+    pub fixed_edges: Option<Vec<(usize, usize)>>,
     pub node_coord: Option<NodeCoord>,
     pub display_data: Option<Vec<(usize, f64, f64)>>,
     pub display_data_type: Option<DisplayDataType>,
     pub tour: Option<Vec<usize>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EdgeData {
     EdgeList(Vec<(usize, usize)>),
     AdjList(Vec<Vec<usize>>),
 }
 
+/// Type of the instance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Type {
     Tsp,
@@ -60,7 +103,7 @@ pub enum EdgeWeightType {
     Special,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EdgeWeight {
     Function,
     FullMatrix(Vec<usize>),
@@ -80,16 +123,32 @@ pub enum DisplayDataType {
     TwoD,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum NodeCoord {
     Two(Vec<(usize, f32, f32)>),
     Three(Vec<(usize, f32, f32, f32)>),
 }
 
+/// Read a TSPLIB instance from `path`.
+///
+/// This funtions is implemented as
+///
+/// ```ignore
+/// parse(BufReader::new(File::open(path)?))
+/// ```
+///
+/// # Errors
+///
+/// This function will return an error if an IO error occurs or if the file cannot be parsed.
 pub fn read<P: AsRef<Path>>(path: P) -> io::Result<Instance> {
     parse(BufReader::new(File::open(path)?))
 }
 
+/// Read a TSPLIB instance from `reader`.
+///
+/// # Errors
+///
+/// This function will return an error if an IO error occurs or if the file cannot be parsed.
 pub fn parse<R: BufRead>(mut reader: R) -> io::Result<Instance> {
     let mut instance = Instance::default();
     let mut line = String::new();
@@ -362,7 +421,7 @@ fn parse_fixed_edges_section<R: BufRead>(instance: &mut Instance,
                                          -> io::Result<()> {
     let mut v = vec![];
     parse_vec(reader, &mut v)?;
-    instance.fixed_edges = v;
+    instance.fixed_edges = Some(v);
     Ok(())
 }
 
